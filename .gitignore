@@ -1,0 +1,31 @@
+# 環境変数（絶対にコミットしない）
+.env
+x_auto_poster/.env
+
+# 実行時データ（ローカル状態）
+x_auto_poster/posted.json
+x_auto_poster/state.json
+x_auto_poster/error.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# 仮想環境
+venv/
+.venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
