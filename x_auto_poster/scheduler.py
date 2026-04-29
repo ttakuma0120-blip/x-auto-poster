@@ -5,9 +5,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 
 logger = logging.getLogger(__name__)
 
-# APSchedulerのjitterは「指定時刻 + 0〜jitter秒のランダム」を加算する。
-# 朝8:00 ±30分 → 7:30スタート + jitter=3600秒(0〜60分) → 7:30〜8:30
-# 夜20:00 ±30分 → 19:30スタート + jitter=3600秒 → 19:30〜20:30
+# 7:30 + jitter(0〜60分) = 7:30〜8:30（朝8時±30分）
+# 19:30 + jitter(0〜60分) = 19:30〜20:30（夜20時±30分）
 MORNING_HOUR = 7
 MORNING_MINUTE = 30
 EVENING_HOUR = 19
@@ -16,7 +15,16 @@ JITTER_SECONDS = 3600
 
 
 def _morning_job(run_post_func: Callable) -> None:
-    logger.info("朝の投稿を開始します")
+    from warm_up import get_phase, get_phase_description, should_post_morning
+
+    phase = get_phase()
+    logger.info(f"現在の状態: {get_phase_description()}")
+
+    if not should_post_morning():
+        logger.info("フェーズ1: 本日は投稿スキップ（2日に1回のスケジュール）")
+        return
+
+    logger.info(f"朝の投稿を開始します（フェーズ{phase}）")
     try:
         run_post_func(dry_run=False)
     except Exception as e:
@@ -24,13 +32,16 @@ def _morning_job(run_post_func: Callable) -> None:
 
 
 def _evening_job(run_post_func: Callable) -> None:
-    from warm_up import is_warm_up_mode
+    from warm_up import get_phase, get_phase_description, should_post_evening
 
-    if is_warm_up_mode():
-        logger.info("warm_upモード中のため夜の投稿をスキップします")
+    phase = get_phase()
+    logger.info(f"現在の状態: {get_phase_description()}")
+
+    if not should_post_evening():
+        logger.info(f"フェーズ{phase}: 夜の投稿をスキップします（フェーズ3から開始）")
         return
 
-    logger.info("夜の投稿を開始します")
+    logger.info("夜の投稿を開始します（フェーズ3）")
     try:
         run_post_func(dry_run=False)
     except Exception as e:
@@ -60,9 +71,10 @@ def start_scheduler(run_post_func: Callable) -> None:
         id="evening_post",
     )
 
-    logger.info("スケジュール設定:")
-    logger.info("  朝: 7:30〜8:30 の間でランダム投稿")
-    logger.info("  夜: 19:30〜20:30 の間でランダム投稿 (warm_upモード中はスキップ)")
+    logger.info("投稿スケジュール:")
+    logger.info("  フェーズ1（〜7日目） : 2日に1回 朝7:30〜8:30")
+    logger.info("  フェーズ2（8〜14日目）: 毎朝 7:30〜8:30")
+    logger.info("  フェーズ3（15日目〜） : 朝7:30〜8:30 + 夜19:30〜20:30")
 
     try:
         scheduler.start()
