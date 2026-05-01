@@ -1,7 +1,9 @@
 import json
 import logging
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from pathlib import Path
+
+JST = timezone(timedelta(hours=9))
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +30,18 @@ def _save_state(state: dict) -> None:
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
+def _today_jst() -> date:
+    return datetime.now(JST).date()
+
+
 def initialize_state() -> None:
     state = _load_state()
     if "start_date" not in state:
-        state["start_date"] = date.today().isoformat()
+        state["start_date"] = _today_jst().isoformat()
         _save_state(state)
         logger.info(f"投稿スケジュール開始: {state['start_date']}")
     else:
-        days_elapsed = (date.today() - date.fromisoformat(state["start_date"])).days
+        days_elapsed = (_today_jst() - date.fromisoformat(state["start_date"])).days
         phase = get_phase()
         logger.info(f"状態読み込み: 開始日 {state['start_date']} (経過 {days_elapsed}日 / フェーズ{phase})")
 
@@ -44,7 +50,7 @@ def get_days_elapsed() -> int:
     state = _load_state()
     if "start_date" not in state:
         return 0
-    return (date.today() - date.fromisoformat(state["start_date"])).days
+    return (_today_jst() - date.fromisoformat(state["start_date"])).days
 
 
 def get_phase() -> int:
